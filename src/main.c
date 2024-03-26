@@ -100,15 +100,15 @@ int generate_key_pair(const BIGNUM *p, const BIGNUM *q, BIGNUM **alpha, BIGNUM *
 }
 
 /**
- * Generate public and private nounce for zero knowledge proof
+ * Generate public and private nonce for zero knowledge proof
  * @param p prime number p
  * @param q prime number q
  * @param beta generator β
- * @param r private nounce
- * @param x public nounce
+ * @param r private nonce
+ * @param x public nonce
  * @return 0 if success, 1 if error
  */
-int generate_nounce(const BIGNUM *p, const BIGNUM *q, const BIGNUM *beta, BIGNUM **r, BIGNUM **x) {
+int generate_nonce(const BIGNUM *p, const BIGNUM *q, const BIGNUM *beta, BIGNUM **r, BIGNUM **x) {
     BN_CTX *ctx = BN_CTX_secure_new();
 
     if (!ctx) {
@@ -116,15 +116,15 @@ int generate_nounce(const BIGNUM *p, const BIGNUM *q, const BIGNUM *beta, BIGNUM
         goto cleanup;
     }
 
-    // Generate private nounce
+    // Generate private nonce
     if (!BN_priv_rand_range(*r, q)) {
-        fprintf(stderr, "Error: Failed to generate private nounce\n");
+        fprintf(stderr, "Error: Failed to generate private nonce\n");
         goto cleanup;
     }
 
-    // Calculate public nouce
+    // Calculate public nonce
     if (!BN_mod_exp(*x, beta, *r, p, ctx)) {
-        fprintf(stderr, "Error: Failed to calculate public nounce\n");
+        fprintf(stderr, "Error: Failed to calculate public nonce\n");
         goto cleanup;
     }
 
@@ -137,13 +137,13 @@ int generate_nounce(const BIGNUM *p, const BIGNUM *q, const BIGNUM *beta, BIGNUM
 }
 
 /**
- * Generate a random chalange for zero knowledge proof
+ * Generate a random challenge for zero knowledge proof
  * @param p prime number p
  * @param q prime number q
- * @param e chalange generated
+ * @param e challenge generated
  * @return 0 if success, 1 if error
  */
-int generate_chalange(BIGNUM **e) {
+int generate_challenge(BIGNUM **e) {
     BIGNUM *two = BN_secure_new();
     BIGNUM *sec_level = BN_secure_new();
     BN_CTX *ctx = BN_CTX_secure_new();
@@ -166,10 +166,9 @@ int generate_chalange(BIGNUM **e) {
     }
     BN_clear_free(two);
 
-    // Generate chalange
-    // TODO: Check if this is the correct way to generate a chalange
+    // Generate challenge
     if (!BN_priv_rand_range(*e, sec_level)) {
-        fprintf(stderr, "Error: Failed to generate chalange\n");
+        fprintf(stderr, "Error: Failed to generate challenge\n");
         BN_CTX_free(ctx);
         return 1;
     }
@@ -188,8 +187,8 @@ int generate_chalange(BIGNUM **e) {
  * Make the proof for zero knowledge proof
  * @param q prime number q
  * @param a private key
- * @param r private nounce
- * @param e chalange
+ * @param r private nonce
+ * @param e challenge
  * @return 0 if success, 1 if error
  */
 int make_proof(const BIGNUM *q, const BIGNUM *a, const BIGNUM *e, const BIGNUM *r, BIGNUM **y) {
@@ -225,7 +224,7 @@ int make_proof(const BIGNUM *q, const BIGNUM *a, const BIGNUM *e, const BIGNUM *
  * @param beta generator β
  * @param y proof of Alice's identity
  * @param v Alice's public key
- * @param e chalange
+ * @param e challenge
  * @param z Bob's verification of Alice's identity
  * @return 0 if success, 1 if error
  */
@@ -275,9 +274,9 @@ int main() {
     BIGNUM *beta = BN_secure_new(); // Generator β
     BIGNUM *a = BN_secure_new(); // Alice's private key
     BIGNUM *v = BN_new(); // Alice's public key
-    BIGNUM *r = BN_secure_new(); // Alice's private nounce
-    BIGNUM *x = BN_new(); // Alice's public nounce
-    BIGNUM *e = BN_secure_new(); // Bob's chalange
+    BIGNUM *r = BN_secure_new(); // Alice's private nonce
+    BIGNUM *x = BN_new(); // Alice's public nonce
+    BIGNUM *e = BN_secure_new(); // Bob's challenge
     BIGNUM *y = BN_secure_new(); // Proof of Alice's identity
     BIGNUM *z = BN_secure_new(); // Bob's verification of Alice's identity
 
@@ -305,19 +304,19 @@ int main() {
     int nTimes = 0, right = 0, wrong = 0;
 
     while (nTimes < PROOF_ITERATIONS) {
-        // Alice: Generate public and private nounce
-        if (generate_nounce(p, q, beta, &r, &x)) {
-            fprintf(stderr, "Error generating nounce.\n");
+        // Alice: Generate public and private nonce
+        if (generate_nonce(p, q, beta, &r, &x)) {
+            fprintf(stderr, "Error generating nonce.\n");
             goto cleanup;
         }
-        // printf("Private nounce: %s\nPublic nounce: %s\n", BN_bn2dec(r), BN_bn2dec(x));
+        // printf("Private nonce: %s\nPublic nonce: %s\n", BN_bn2dec(r), BN_bn2dec(x));
 
         // Bob <- Alice: x
-        if (generate_chalange(&e)) {
-            fprintf(stderr, "Error generating chalange.\n");
+        if (generate_challenge(&e)) {
+            fprintf(stderr, "Error generating challenge.\n");
             goto cleanup;
         }
-        // printf("Chalange: %s\n", BN_bn2dec(e));
+        // printf("Challenge: %s\n", BN_bn2dec(e));
 
         // Alice <- Bob: e
         if (make_proof(q, a, e, r, &y)) {
