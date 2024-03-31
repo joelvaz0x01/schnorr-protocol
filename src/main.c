@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <openssl/bn.h>
 
-#define PRIME_SECURITY 1024
-#define SECURITY_LEVEL 512
+#define PRIME_SECURITY 2048
+#define SECURITY_LEVEL 1024
 #define PROOF_ITERATIONS 1000
 
 /**

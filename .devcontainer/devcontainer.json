@@ -1,0 +1,17 @@
+{
+	"name": "C/C++",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+
+    "remoteUser": "vscode",
+
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-vscode.cpptools",
+				"ms-vscode.cmake-tools"
+			]
+		}
+	}
+}
