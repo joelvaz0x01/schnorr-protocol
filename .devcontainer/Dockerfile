@@ -1,6 +1,6 @@
 FROM debian:bookworm
 
-ARG REINSTALL_CMAKE_VERSION_FROM_SOURCE="3.29.0"
+ARG REINSTALL_CMAKE_VERSION_FROM_SOURCE="3.28.1"
 
 COPY ./reinstall-cmake.sh /tmp/
 
