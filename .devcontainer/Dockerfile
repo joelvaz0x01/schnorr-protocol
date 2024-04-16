@@ -7,7 +7,7 @@ COPY ./reinstall-cmake.sh /tmp/
 RUN export DEBIAN_FRONTEND=noninteractive \
     # Install C/C++ tools
     && apt update \
-    && apt -y install sudo curl git cmake build-essential cppcheck valgrind clang lldb llvm gdb libssl-dev \
+    && apt -y install sudo curl git cmake build-essential cppcheck valgrind clang lldb llvm gdb libssl-dev procps \
     && apt autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/* \

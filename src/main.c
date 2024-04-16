@@ -5,25 +5,7 @@
 #define SECURITY_LEVEL 1024
 #define PROOF_ITERATIONS 1000
 
-/**
- * Free a BIGNUM variable
- * @param bn BIGNUM variable to be freed
- * @return NULL
- */
-void *free_bn(BIGNUM **bn) {
-    BN_clear_free(*bn);
-    return NULL;
-}
-
-/**
- * Free a BN_CTX variable
- * @param ctx BN_CTX variable to be freed
- * @return NULL
- */
-void *free_ctx(BN_CTX **ctx) {
-    BN_CTX_free(*ctx);
-    return NULL;
-}
+// TODO: integrity check
 
 /**
  * Generates two safe prime numbers, p and q, where p = 2q + 1
@@ -32,34 +14,22 @@ void *free_ctx(BN_CTX **ctx) {
  * @return 0 if success, 1 if error
  */
 int generate_safe_primes(BIGNUM **p, BIGNUM **q) {
-    BN_CTX *ctx = BN_CTX_secure_new();
-
-    if (!ctx) {
-        fprintf(stderr, "Error: Memory allocation failed\n");
-        return 1;
-    }
-
-    if (!BN_generate_prime_ex2(*p, PRIME_SECURITY, 1, NULL, NULL, NULL, ctx)) {
+    if (!BN_generate_prime_ex(*p, PRIME_SECURITY, 1, NULL, NULL, NULL)) {
         fprintf(stderr, "Failed to generate prime p.\n");
-        ctx = free_ctx(&ctx);
         return 1;
     }
 
     // Calculate p - 1
     if (!BN_sub(*q, *p, BN_value_one())) {
         fprintf(stderr, "Failed to subtract 1 from p.\n");
-        ctx = free_ctx(&ctx);
         return 1;
     }
 
     // Calculate q: (p - 1) / 2
     if (!BN_rshift1(*q, *q)) {
         fprintf(stderr, "Failed to calculate q.\n");
-        ctx = free_ctx(&ctx);
         return 1;
     }
-
-    ctx = free_ctx(&ctx);
     return 0;
 }
 
@@ -83,46 +53,46 @@ int generate_key_pair(const BIGNUM *p, const BIGNUM *q, BIGNUM **alpha, BIGNUM *
 
     if (!BN_priv_rand_range(*alpha, p)) {
         fprintf(stderr, "Error: Failed to generate alpha\n");
-        ctx = free_ctx(&ctx);
+        BN_CTX_free(ctx);
         return 1;
     }
 
     // Calculate: P - 1
     if (!BN_sub(*beta, p, BN_value_one())) {
         fprintf(stderr, "Error: Failed to calculate P - 1\n");
-        ctx = free_ctx(&ctx);
+        BN_CTX_free(ctx);
         return 1;
     }
 
     // Calculate: (P - 1) / Q
     if (!BN_div(*beta, NULL, *beta, q, ctx)) {
         fprintf(stderr, "Error: Failed to divide P - 1 by Q\n");
-        ctx = free_ctx(&ctx);
+        BN_CTX_free(ctx);
         return 1;
     }
 
-    // Calculate: α^((P-1)/Q) mod P
+    // Calculate: α^((P-1) / Q) mod P
     if (!BN_mod_exp(*beta, *alpha, *beta, p, ctx)) {
         fprintf(stderr, "Error: Failed to calculate beta\n");
-        ctx = free_ctx(&ctx);
+        BN_CTX_free(ctx);
         return 1;
     }
 
     // Generate private key
     if (!BN_priv_rand_range(*a, q)) {
         fprintf(stderr, "Error: Failed to generate private key\n");
-        ctx = free_ctx(&ctx);
+        BN_CTX_free(ctx);
         return 1;
     }
 
     // Calculate public key (β^−a mod P)
     if (!BN_mod_exp(*v, BN_mod_inverse(NULL, *beta, p, ctx), *a, p, ctx)) {
         fprintf(stderr, "Error: Failed to generate public key\n");
-        ctx = free_ctx(&ctx);
+        BN_CTX_free(ctx);
         return 1;
     }
 
-    ctx = free_ctx(&ctx);
+    BN_CTX_free(ctx);
     return 0;
 }
 
@@ -146,18 +116,18 @@ int generate_nonce(const BIGNUM *p, const BIGNUM *q, const BIGNUM *beta, BIGNUM 
     // Generate private nonce
     if (!BN_priv_rand_range(*r, q)) {
         fprintf(stderr, "Error: Failed to generate private nonce\n");
-        ctx = free_ctx(&ctx);
+        BN_CTX_free(ctx);
         return 1;
     }
 
     // Calculate public nonce
     if (!BN_mod_exp(*x, beta, *r, p, ctx)) {
         fprintf(stderr, "Error: Failed to calculate public nonce\n");
-        ctx = free_ctx(&ctx);
+        BN_CTX_free(ctx);
         return 1;
     }
 
-    ctx = free_ctx(&ctx);
+    BN_CTX_free(ctx);
     return 0;
 }
 
@@ -181,32 +151,32 @@ int generate_challenge(BIGNUM **e) {
     // Set variables: 2 and sec_level
     if (!BN_set_word(two, 2) || !BN_set_word(sec_level, (unsigned int) SECURITY_LEVEL)) {
         fprintf(stderr, "Error: Failed to set variables\n");
-        two = free_bn(&two);
-        sec_level = free_bn(&sec_level);
-        ctx = free_ctx(&ctx);
+        BN_clear_free(two);
+        BN_clear_free(sec_level);
+        BN_CTX_free(ctx);
         return 1;
     }
 
     // Calculate interval: 2^sec_level
     if (!BN_exp(sec_level, two, sec_level, ctx)) {
         fprintf(stderr, "Error: Failed to calculate interval\n");
-        two = free_bn(&two);
-        sec_level = free_bn(&sec_level);
-        ctx = free_ctx(&ctx);
+        BN_clear_free(two);
+        BN_clear_free(sec_level);
+        BN_CTX_free(ctx);
         return 1;
     }
-    two = free_bn(&two);
+    BN_clear_free(two);
 
     // Generate challenge
     if (!BN_priv_rand_range(*e, sec_level)) {
         fprintf(stderr, "Error: Failed to generate challenge\n");
-        sec_level = free_bn(&sec_level);
-        ctx = free_ctx(&ctx);
+        BN_clear_free(sec_level);
+        BN_CTX_free(ctx);
         return 1;
     }
 
-    sec_level = free_bn(&sec_level);
-    ctx = free_ctx(&ctx);
+    BN_clear_free(sec_level);
+    BN_CTX_free(ctx);
     return 0;
 }
 
@@ -229,18 +199,18 @@ int make_proof(const BIGNUM *q, const BIGNUM *a, const BIGNUM *e, const BIGNUM *
     // Calculate a * e
     if (!BN_mul(*y, a, e, ctx)) {
         fprintf(stderr, "Error: Failed to multiply a and e\n");
-        ctx = free_ctx(&ctx);
+        BN_CTX_free(ctx);
         return 1;
     }
 
     // Calculate y: (a * e + r) mod q
     if (!BN_mod_add(*y, *y, r, q, ctx)) {
         fprintf(stderr, "Error: Failed to sum a*e and r\n");
-        ctx = free_ctx(&ctx);
+        BN_CTX_free(ctx);
         return 1;
     }
 
-    ctx = free_ctx(&ctx);
+    BN_CTX_free(ctx);
     return 0;
 }
 
@@ -266,29 +236,29 @@ int calculate_proof(const BIGNUM *beta, const BIGNUM *y, const BIGNUM *v, const 
     // Calculate β^y mod p
     if (!BN_mod_exp(z_aux, beta, y, p, ctx)) {
         fprintf(stderr, "Error: Failed to calculate β^y\n");
-        z_aux = free_bn(&z_aux);
-        ctx = free_ctx(&ctx);
+        BN_clear_free(z_aux);
+        BN_CTX_free(ctx);
         return 1;
     }
 
     // Calculate v^e mod p
     if (!BN_mod_exp(*z, v, e, p, ctx)) {
         fprintf(stderr, "Error: Failed to calculate v^e\n");
-        z_aux = free_bn(&z_aux);
-        ctx = free_ctx(&ctx);
+        BN_clear_free(z_aux);
+        BN_CTX_free(ctx);
         return 1;
     }
 
     // Calculate z: β^y * v^e mod p
     if (!BN_mod_mul(*z, z_aux, *z, p, ctx)) {
         fprintf(stderr, "Error: Failed to calculate β^y * v^e\n");
-        z_aux = free_bn(&z_aux);
-        ctx = free_ctx(&ctx);
+        BN_clear_free(z_aux);
+        BN_CTX_free(ctx);
         return 1;
     }
 
-    z_aux = free_bn(&z_aux);
-    ctx = free_ctx(&ctx);
+    BN_clear_free(z_aux);
+    BN_CTX_free(ctx);
     return 0;
 }
 
@@ -296,8 +266,8 @@ int calculate_proof(const BIGNUM *beta, const BIGNUM *y, const BIGNUM *v, const 
 int main() {
     BIGNUM *p = BN_secure_new(); // Safe prime p
     BIGNUM *q = BN_secure_new(); // Safe prime q
-    BIGNUM *alpha = BN_secure_new(); // Generator α
-    BIGNUM *beta = BN_secure_new(); // Generator β
+    BIGNUM *alpha = BN_secure_new(); // Generator alpha
+    BIGNUM *beta = BN_secure_new(); // Generator beta
     BIGNUM *a = BN_secure_new(); // Alice's private key
     BIGNUM *v = BN_new(); // Alice's public key
     BIGNUM *r = BN_secure_new(); // Alice's private nonce
@@ -365,30 +335,30 @@ int main() {
     printf(" - True: %d/%d - %d%%\n", right, nTimes, right / nTimes * 100);
     printf(" - False: %d/%d - %d%%\n", wrong, nTimes, wrong / nTimes * 100);
 
-    p = free_bn(&p);
-    q = free_bn(&q);
-    alpha = free_bn(&alpha);
-    beta = free_bn(&beta);
-    a = free_bn(&a);
-    v = free_bn(&v);
-    r = free_bn(&r);
-    x = free_bn(&x);
-    e = free_bn(&e);
-    y = free_bn(&y);
-    z = free_bn(&z);
+    BN_clear_free(p);
+    BN_clear_free(q);
+    BN_clear_free(alpha);
+    BN_clear_free(beta);
+    BN_clear_free(a);
+    BN_clear_free(v);
+    BN_clear_free(r);
+    BN_clear_free(x);
+    BN_clear_free(e);
+    BN_clear_free(y);
+    BN_clear_free(z);
     return 0;
 
 cleanup:
-    p = free_bn(&p);
-    q = free_bn(&q);
-    alpha = free_bn(&alpha);
-    beta = free_bn(&beta);
-    a = free_bn(&a);
-    v = free_bn(&v);
-    r = free_bn(&r);
-    x = free_bn(&x);
-    e = free_bn(&e);
-    y = free_bn(&y);
-    z = free_bn(&z);
+    BN_clear_free(p);
+    BN_clear_free(q);
+    BN_clear_free(alpha);
+    BN_clear_free(beta);
+    BN_clear_free(a);
+    BN_clear_free(v);
+    BN_clear_free(r);
+    BN_clear_free(x);
+    BN_clear_free(e);
+    BN_clear_free(y);
+    BN_clear_free(z);
     return -1;
 }

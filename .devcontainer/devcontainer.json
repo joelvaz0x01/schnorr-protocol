@@ -1,5 +1,5 @@
 {
-	"name": "C/C++",
+	"name": "Schnorr Protocol",
 	"build": {
 		"dockerfile": "Dockerfile"
 	},
